@@ -1,4 +1,8 @@
 .claude
 
+.venv
+.env
+
 # Misc
 Notes/
+Experiments/
