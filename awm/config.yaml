@@ -18,7 +18,7 @@ agent:
 
 paths:
   assets: awm/assets                       # labeled Kenney catalog (catalog.json + objects/ + terrain/)
-  generated_assets: awm/runtime/sprites    # procedural-sprite cache (fallback only)
+  generated_assets: awm/runtime/sprites    # Claude-generated sprite cache (off-catalog objects)
   runtime_db: awm/runtime/world.db
 
 render:

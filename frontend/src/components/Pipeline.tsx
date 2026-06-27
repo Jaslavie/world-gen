@@ -32,7 +32,7 @@ export function Pipeline() {
                 <StatusDot status={s.status} />
                 <span className="text-[11px] tabular-nums text-faint">{s.id}</span>
                 <span className="text-[13px] font-medium text-ink">{s.name}</span>
-                {s.ms !== undefined && (
+                {s.ms != null && (
                   <span className={`ml-auto tabular-nums text-[11px] ${s.status === "running" ? "text-accent" : "text-faint"}`}>
                     {(s.ms / 1000).toFixed(1)}s
                   </span>

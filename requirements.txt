@@ -1,8 +1,7 @@
 anthropic
 mcp
 mcp-agent
-omegaconf
+pyyaml
 pygame
 pillow
 python-dotenv
-loguru
