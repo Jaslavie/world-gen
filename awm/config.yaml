@@ -1,0 +1,31 @@
+models:
+  compile: claude-opus-4-8        # world compiler (runs once per world; quality)
+  agent: claude-sonnet-4-6        # agent policy (many tool calls; speed)
+  sprite: claude-haiku-4-5-20251001  # off-catalog pixel-art sprites (cheap; cached)
+
+llm:
+  compile_max_tokens: 4000     # max_tokens for a generation call
+  retries: 3                   # how many times to retry if the reply is not valid JSON
+
+generation:
+  task_attempts: 2             # task-synthesis self-heal retries
+  env_attempts: 6              # env-gen reject-and-regenerate budget
+  seed: 0                      # default generation seed (logged for reproducibility)
+
+agent:
+  steps: 60                    # default tool-call budget for a rollout
+  max_tokens: 1500             # max_tokens per agent turn
+
+paths:
+  assets: awm/assets                       # labeled Kenney catalog (catalog.json + objects/ + terrain/)
+  generated_assets: awm/runtime/sprites    # procedural-sprite cache (fallback only)
+  runtime_db: awm/runtime/world.db
+
+render:
+  cell: 36                     # pixels per grid cell
+  panel_w: 320                 # inspector panel width
+  font: "menlo,consolas,monospace"
+
+server:
+  host: "127.0.0.1"            # Studio backend bind address
+  port: 8000

@@ -5,3 +5,4 @@ omegaconf
 pygame
 pillow
 python-dotenv
+loguru
