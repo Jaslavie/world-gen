@@ -2,7 +2,22 @@
 
 .venv
 .env
+__pycache__/
+
 
 # Misc
-Notes/
 Experiments/
+logs/
+archive/
+
+# Node / frontend build
+node_modules/
+dist/
+*.local
+
+# Runtime artifacts (regenerated)
+awm/runtime/
+
+# OS
+.DS_Store
+worldgen.egg-info/
