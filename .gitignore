@@ -9,6 +9,8 @@ __pycache__/
 Experiments/
 logs/
 archive/
+world-gen-new/
+outputs/
 
 # Node / frontend build
 node_modules/

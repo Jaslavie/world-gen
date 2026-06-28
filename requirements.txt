@@ -1,7 +1,7 @@
 anthropic
 mcp
 mcp-agent
-pyyaml
+hydra-core
 pygame
 pillow
 python-dotenv
