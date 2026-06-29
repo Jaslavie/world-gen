@@ -24,15 +24,15 @@ from fastapi.staticfiles import StaticFiles
 from hydra import compose, initialize_config_dir
 from omegaconf import DictConfig
 
-from awm.core.agent import log_tick
-from awm.core.generator import Generator
-from awm.core.generator.generate_assets import AssetLibrary
-from awm.core.runtime import Engine
-from awm.core.utils import Compiler
+from worldgen.core.agent import log_tick
+from worldgen.core.generator import Generator
+from worldgen.core.generator.generate_assets import AssetLibrary
+from worldgen.core.runtime import Engine
+from worldgen.core.utils import Compiler
 
 log = logging.getLogger(__name__)
 repo = Path(__file__).resolve().parents[1]
-conf_dir = str(repo / "awm" / "conf")
+conf_dir = str(repo / "world-gen" / "conf")
 stage_names = ["Prompt", "Extract objects", "Build task list", "Ground DB objects",
                "Build MCP tool list", "Verifier", "World-state check"]
 
@@ -220,11 +220,11 @@ def run_agent() -> None:
         payload["phase"] = "running"
         set_stage(7, "running")
         os.environ["AGENT_START"] = str(time.time())
-        agent_env = {**os.environ, "PYTHONPATH": str(repo), "AWM_AGENT_ONLY": "1",
+        agent_env = {**os.environ, "PYTHONPATH": str(repo), "WORLDGEN_AGENT_ONLY": "1",
                      "WORLD_DB": str(db_path), "ACTIONS_LOG": str(actions_log),
-                     "AWM_STEPS": str(studio_cfg.agent.steps)}
+                     "WORLDGEN_STEPS": str(studio_cfg.agent.steps)}
         agent_log = open(db_path.with_name("agent.log"), "w")
-        proc = subprocess.Popen([sys.executable, "-m", "awm.core.agent"], cwd=str(repo),
+        proc = subprocess.Popen([sys.executable, "-m", "worldgen.core.agent"], cwd=str(repo),
                                 env=agent_env, stdout=agent_log, stderr=agent_log)
         seen = 0
         while proc.poll() is None:

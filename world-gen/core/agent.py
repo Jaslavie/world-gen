@@ -130,7 +130,7 @@ class Agent:
                                         default_model=self.model),
             mcp=MCPSettings(servers={"worldgen": MCPServerSettings(
                 transport="stdio", command=sys.executable,
-                args=["-m", "awm.core.server"], cwd=str(repo), env=server_env)}),
+                args=["-m", "worldgen.core.server"], cwd=str(repo), env=server_env)}),
         )
         app = MCPApp(name="worldgen_agent", settings=settings)
         async with app.run():
@@ -203,18 +203,18 @@ def run_terminal(cfg: DictConfig) -> None:
     log_tick(log_path, engine, "(world generated)", cfg)
     actions_log.write_text("")
 
-    render_cmd = f"cd {repo} && export WORLD_DB={db_path} PYTHONPATH={repo} && {sys.executable} -m awm.core.render"
+    render_cmd = f"cd {repo} && export WORLD_DB={db_path} PYTHONPATH={repo} && {sys.executable} -m worldgen.core.render"
     render_env = {**os.environ, "WORLD_DB": str(db_path), "PYTHONPATH": str(repo)}
     if sys.platform == "darwin":
         subprocess.Popen(["osascript", "-e", f'tell application "Terminal" to do script "{render_cmd}"'])
     else:
-        subprocess.Popen([sys.executable, "-m", "awm.core.render"], cwd=str(repo), env=render_env,
+        subprocess.Popen([sys.executable, "-m", "worldgen.core.render"], cwd=str(repo), env=render_env,
                          start_new_session=True)
 
     os.environ["AGENT_START"] = str(time.time())
     agent_env = {**os.environ, "WORLD_DB": str(db_path), "ACTIONS_LOG": str(actions_log),
-                 "AWM_AGENT_ONLY": "1", "AWM_STEPS": str(steps), "PYTHONPATH": str(repo)}
-    proc = subprocess.Popen([sys.executable, "-m", "awm.core.agent"], cwd=str(repo), env=agent_env)
+                 "WORLDGEN_AGENT_ONLY": "1", "WORLDGEN_STEPS": str(steps), "PYTHONPATH": str(repo)}
+    proc = subprocess.Popen([sys.executable, "-m", "worldgen.core.agent"], cwd=str(repo), env=agent_env)
 
     seen = 0
     while proc.poll() is None:
@@ -236,9 +236,9 @@ def run_terminal(cfg: DictConfig) -> None:
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg: DictConfig) -> None:
-    if os.environ.get("AWM_AGENT_ONLY"):
+    if os.environ.get("WORLDGEN_AGENT_ONLY"):
         db = os.environ["WORLD_DB"]
-        steps = int(os.environ.get("AWM_STEPS", cfg.agent.steps))
+        steps = int(os.environ.get("WORLDGEN_STEPS", cfg.agent.steps))
         engine = Engine(db, cfg)
         Agent(cfg.models.agent, cfg.agent.max_tokens).run(db, steps, engine.objective())
         return

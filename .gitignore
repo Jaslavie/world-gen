@@ -18,7 +18,7 @@ dist/
 *.local
 
 # Runtime artifacts (regenerated)
-awm/runtime/
+world-gen/runtime/
 
 # OS
 .DS_Store

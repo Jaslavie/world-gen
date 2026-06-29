@@ -24,6 +24,12 @@ studio = [
     "uvicorn[standard]",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["awm*"]
+[tool.setuptools]
+package-dir = {"worldgen" = "world-gen"}
+packages = [
+    "worldgen",
+    "worldgen.core",
+    "worldgen.core.generator",
+    "worldgen.core.runtime",
+    "worldgen.core.utils",
+]

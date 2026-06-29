@@ -1,5 +1,5 @@
 """
-awm.core.generator — the stochastic half: build a world from a prompt.
+worldgen.core.generator — the stochastic half: build a world from a prompt.
 - `generate_world` runs the two LLM generation stages (prompt -> task spec -> sqlite database)
 - `prompts` holds the generation prompts and closed vocabulary
 - `generate_layout` pass-through; the LLM already emits the terrain map + placements

@@ -20,7 +20,9 @@ Other tasks:
 | ![Lava maze](artifacts/results/lava_full_env.png)<br>*"traverse a lava maze, pick up the key, and put it inside the crate"* | ![Mushroom and bush](artifacts/results/mushroom.png)<br>*"cross grass and dirt to place the mushroom next to the bush"* | ![Frog and star](artifacts/results/frog.png)<br>*"a frog crosses water via bridge to drop the star on the rock"* |
 | ![Coin on sand](artifacts/results/coin.png)<br>*"pick up the coin from the sand and place it on the rock"* | ![Spaceship dock](artifacts/results/spaceship.png)<br>*"dock at the spaceship, pick up gem, and place it on the crate"* | ![Key and exit](artifacts/results/door.png)<br>*"grab the key, open the door, and reach the exit_sign"* |
 
-Across **39 logged generation runs**, **25 compiled and passed all verifier checks** (64%); the rest exhausted the 6-attempt retry budget with no world shipped. Simple pick-and-place tasks compile most reliably (100%); layout-heavy prompts like lava mazes and dungeons are hardest (50%). Every success is BFS-solvable and schema-valid.
+Across **39 logged generation runs**, **25 compiled and passed all verifier checks** (64%); the rest exhausted the 6-attempt retry budget. Simple pick-and-place tasks compile most reliably (100%) while layout-heavy prompts like lava mazes and dungeons are hardest (50%). The likely reasons are that the LLM struggles with geometry-based tasks. 
+
+Normally, **procedural noise generation** is more effective for this, as proven by [Minecraft biome gen](https://minecraft.wiki/w/World_generation). We made this tradeoff to limit scope.
 
 ![Compile outcomes by task family](artifacts/evaluations/compile_by_family.png)
 
@@ -53,6 +55,7 @@ Across **39 logged generation runs**, **25 compiled and passed all verifier chec
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e .
 export ANTHROPIC_API_KEY=sk-...
 ```
 
@@ -65,7 +68,7 @@ export ANTHROPIC_API_KEY=sk-...
 ```bash
 # Terminal 1: backend (holds ANTHROPIC_API_KEY)
 pip install fastapi "uvicorn[standard]"
-python -m awm.api
+python -m worldgen.api
 ```
 
 ```bash
@@ -81,10 +84,10 @@ Open `http://localhost:5173`. Type a prompt, press Generate, then press Run agen
 
 ```bash
 # Run generation
-python -m awm.core.agent
+python -m worldgen.core.agent
 
 # or pass the prompt directly to the command line
-python -m awm.core.agent "pick up the gem and put it inside the box"
+python -m worldgen.core.agent "pick up the gem and put it inside the box"
 ```
 
 3. Open `run.log` to inspect the world state over time
@@ -149,11 +152,11 @@ The current state is aggregated into a JSON snapshot from SQLite. The agent writ
   "walls": {(0, 0), (0, 1), (1, 0), ...},          # non-walkable cells
   "entities": {
     "agent":      {"type": "agent", "components": ["transform", "holder"],
-                   "sprite": "awm/assets/objects/adventurer.png"},
+                   "sprite": "world-gen/assets/objects/adventurer.png"},
     "key":        {"type": "key",   "components": ["transform", "pickable"],
-                   "sprite": "awm/assets/objects/key.png"},
+                   "sprite": "world-gen/assets/objects/key.png"},
     "crate":      {"type": "crate", "components": ["transform", "container", "openable", "blocking"],
-                   "sprite": "awm/assets/objects/crate.png"},
+                   "sprite": "world-gen/assets/objects/crate.png"},
   },
   "pos":     {"agent": (2, 5), "key": (3, 2), "crate": (10, 5)},
   "flags":   {"agent": {}, "key": {"is_held": False}, "crate": {"is_open": False}},
@@ -200,7 +203,7 @@ verifier.verify(snap)
 # Architecture
 
 ```text
-awm/
+world-gen/
 ├── api.py                  # talks to the frontend
 ├── conf/config.yaml
 ├── assets/                 # default 2d sprites

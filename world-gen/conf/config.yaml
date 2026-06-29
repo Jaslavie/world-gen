@@ -30,10 +30,10 @@ agent:
   max_tokens: 1500             # max_tokens per agent turn
 
 paths:
-  assets: awm/assets                       # labeled Kenney catalog (catalog.json + objects/ + terrain/)
-  generated_assets: awm/runtime/sprites    # Claude-generated sprite cache (off-catalog objects)
-  runtime_db: awm/runtime/world.db
-  logs: awm/logs                             # session dirs: run.log, database/, benchmark.json
+  assets: world-gen/assets                       # labeled Kenney catalog (catalog.json + objects/ + terrain/)
+  generated_assets: world-gen/runtime/sprites    # Claude-generated sprite cache (off-catalog objects)
+  runtime_db: world-gen/runtime/world.db
+  logs: world-gen/logs                             # session dirs: run.log, database/, benchmark.json
 
 render:
   cell: 36                     # pixels per grid cell
