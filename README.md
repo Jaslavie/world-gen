@@ -6,15 +6,17 @@ The primary goal of this project is to demonstrate that **AI generation can be g
 
 See [Architecture Overview](#architecture-overview) to understand how it works.
 
-![Cross the bridge](artifacts/gifs/bridge_crossing.gif)
+![Bridge over water](artifacts/gifs/bridge_crossing.gif)
 *"pull the lever to cross water over bridge terrain"*
 
-|                                                                                                                         |                                                                                                                          |                                                                                                                    |
-| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| ![Lava maze](artifacts/results/lava_full_env.png)<br>*"traverse a lava maze, pick up the key, and put it inside the crate"* | ![Mushroom and bush](artifacts/results/mushroom.png)<br>*"cross grass and dirt to place the mushroom next to the bush"*       | ![Gem in box](artifacts/results/gem.png)<br>*"pick up the gem and put it inside the box"*                            |
-| ![Key and exit](artifacts/results/lava.png)<br>*"grab the key, open the door, and reach the exit_sign"*                     | ![Bridge over water](artifacts/results/bridge.png)<br>*"pull the lever to cross water over bridge terrain"*                 | ![Coin on sand](artifacts/results/coin.png)<br>*"pick up the coin from the sand and place it on the rock"*            |
-| ![Frog and star](artifacts/results/frog.png)<br>*"a frog crosses water via bridge to drop the star on the rock"*                       | ![Spaceship dock](artifacts/results/spaceship.png)<br>*"dock at the spaceship, pick up gem, and place it on the crate"* | ![Lever and flag](artifacts/results/lever.png)<br>*"flip the switch and carry gold to the flag"*                       |
+| | |
+| --- | --- |
+| ![Key and exit](artifacts/gifs/door.gif)<br>*"grab the key, open the door, and reach the exit_sign"* | ![Lever and flag](artifacts/gifs/lever.gif)<br>*"flip the switch and carry gold to the flag"* |
 
+| | | |
+| --- | --- | --- |
+| ![Lava maze](artifacts/results/lava_full_env.png)<br>*"traverse a lava maze, pick up the key, and put it inside the crate"* | ![Mushroom and bush](artifacts/results/mushroom.png)<br>*"cross grass and dirt to place the mushroom next to the bush"* | ![Frog and star](artifacts/results/frog.png)<br>*"a frog crosses water via bridge to drop the star on the rock"* |
+| ![Coin on sand](artifacts/results/coin.png)<br>*"pick up the coin from the sand and place it on the rock"* | ![Spaceship dock](artifacts/results/spaceship.png)<br>*"dock at the spaceship, pick up gem, and place it on the crate"* | ![Key and exit](artifacts/results/door.png)<br>*"grab the key, open the door, and reach the exit_sign"* |
 
 # Table of Contents
 
@@ -332,13 +334,9 @@ Measured with the 9 prompt benchmarks with Opus-4.8 for compiling the world spec
 
 | System                                                              | Domain    | Verifier   | Solvable?  | Generation time | Generation cost   |
 | ------------------------------------------------------------------- | --------- | ---------- | ---------- | --------------- | ----------------- |
-| World-Gen                                                           | 2D        | fixed code | guaranteed | ~14 s           | 2 LLM calls |
+| World-Gen                                                           | 2D        | fixed code | guaranteed | ~10-18 s           | ~30 cents |
 | Agent World Model / EnvScaler [↗](https://arxiv.org/abs/2601.05808) | Web apps  | LLM judge  | no         | n/r             | ~$1               |
-| OMNI-EPIC [↗](https://arxiv.org/abs/2405.15568)                     | code sim  | LLM code   | partial    | minutes         | n/r               |
-| GenSim [↗](https://arxiv.org/abs/2310.01361)                        | robotics  | LLM code   | partial    | minutes         | n/r               |
-| ProcTHOR [↗](https://arxiv.org/abs/2206.06994)                      | 3D scenes | engine     | n/a        | seconds         | n/r               |
-| Genie 3                                                             | pixels    | VLM        | no         | real-time       | GPU inference     |
-| DIAMOND [↗](https://arxiv.org/abs/2405.12399)                       | neural WM | none       | no         | n/r             | GPU               |
+| Genie 3                                                             | pixels    | VLM        | no         | real-time 23-24 fps      | GPU inference     |
 
 
 # Next steps & Limitations
