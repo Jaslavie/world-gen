@@ -1,6 +1,8 @@
 # World Gen: Verifiable 2D world generation with queryable game states
 
-We turn text prompts into code-grounded 2D games where the world state and objects are stored in a deterministic database. All agent actions and success checks are executed as "tool calls" (i.e. queries) to this database. Inspired by how [MCP agents](https://www.anthropic.com/news/model-context-protocol) use strict tool calls to interact with apps, this framework applies the same logic to 2D gamesf by orcing the agent to interact exclusively through a deterministic database layer.
+We turn text prompts into code-grounded 2D games where the world state and objects are stored in a deterministic database. All agent actions and success checks are executed as "tool calls" (i.e. queries) to this database. 
+
+Inspired by how [MCP agents](https://www.anthropic.com/news/model-context-protocol) use strict tool calls to interact with apps, this framework applies the same logic to 2D games by forcing the agent to interact exclusively through a deterministic database layer.
 
 The primary goal of this project is to demonstrate that **AI generation can be grounded into tangible, stateful objects that code can verify**. We demonstrate that a fully grounded, verifiable world can be generated in **tens of seconds**, meaning we can meaningfully scale to "infinite" worlds that generate in real time.
 
