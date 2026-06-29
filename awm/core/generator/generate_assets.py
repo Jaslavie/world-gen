@@ -1,43 +1,39 @@
-"""Sprite resolution: catalog first, Claude-generated fallback.
-
-  sprite(name, kind, override)  ->  catalog match, else a generated pixel-art sprite
+"""
+Asset library
+1. Try to look up an asset in the catalog.json file
+2. (disabled) If not found, generate a new asset using the Claude model
 """
 from __future__ import annotations
 
-import re
+import json
+# import re
 from pathlib import Path
 
-from PIL import Image
+# from PIL import Image
+
+# from . import prompts
 
 
 class AssetLibrary:
-    ENTITY_ALIASES = {
-        "agent": "adventurer", "player": "adventurer", "hero": "adventurer",
-        "character": "adventurer", "person": "adventurer", "explorer": "adventurer",
-        "ship": "spaceship", "rocket": "spaceship",
-        "exit": "exit_sign", "goal": "exit_sign", "finish": "exit_sign", "gate": "door",
-        "jewel": "gem", "crystal": "gem", "diamond": "gem", "money": "coin",
-        "lamp": "torch", "light": "torch", "candle": "torch", "toggle": "switch",
-        "trap": "spikes", "shrub": "bush", "flower": "plant",
-        "boulder": "rock", "stone": "rock", "treasure": "gold",
-    }
-    TILE_ALIASES = {
-        "ground": "floor", "room": "floor", "path": "floor", "corridor": "floor",
-        "passage": "floor", "hall": "floor", "tile": "floor", "rock": "stone",
-    }
-    SPRITE_RES = 64   # final sprite size (px), matching the catalog art
-    SPRITE_GRID = 16  # resolution the model designs at; nearest-neighbour upscaled
-
     def __init__(self, assets_dir: str | Path, generated_dir: str | Path,
-                 sprite_model: str | None = None) -> None:
+                 sprite_model: str | None = None, *,
+                 sprite_res: int = 64, sprite_grid: int = 16,
+                 sprite_max_tokens: int = 4000, sprite_retries: int = 2) -> None:
+        # File paths
         self.assets_dir = Path(assets_dir)
         self.generated_dir = Path(generated_dir)
         self.generated_dir.mkdir(parents=True, exist_ok=True)
-        self.sprite_model = sprite_model   # None -> generation off
-        self._compiler = None              # lazily built on first generation
-        import json
-        cat = self.assets_dir / "catalog.json"
-        cat = json.loads(cat.read_text()) if cat.exists() else {"objects": {}, "terrain": {}}
+
+        # # Sprite generation parameters (LLM off — catalog only)
+        # self.sprite_model = sprite_model
+        # self.sprite_res = sprite_res
+        # self.sprite_grid = sprite_grid
+        # self.sprite_max_tokens = sprite_max_tokens
+        # self.sprite_retries = sprite_retries
+        # self.compiler = None  # lazily built on first generation
+
+        # Load catalog of existing sprites
+        cat = json.loads((self.assets_dir / "catalog.json").read_text())
         self.objects = dict(cat.get("objects", {}))
         self.terrain = dict(cat.get("terrain", {}))
         for sub, table in (("objects", self.objects), ("terrain", self.terrain)):
@@ -46,58 +42,99 @@ class AssetLibrary:
         self.object_labels = sorted(self.objects)
         self.terrain_labels = sorted(self.terrain)
 
-    # main entry: catalog (model's label first, then the noun), else generate
-    def sprite(self, name: str, kind: str, override: str | None = None) -> str | None:
-        return (self.from_catalog(override, kind) if override else None) \
-            or self.from_catalog(name, kind) \
-            or self.generate(name, kind)
+    # Resolve a catalog asset by exact name (LLM picks from the allowed list)
+    def catalog_sprite(self, name: str, *, kind: str) -> str:
+        path = self.from_catalog(name, kind=kind)
+        if not path:
+            raise ValueError(f"{name!r} not in {kind} catalog")
+        return path
 
-    # 1. catalog lookup based on aliases
-    def from_catalog(self, name: str | None, kind: str) -> str | None:
-        if not name:
-            return None
-        table = self.objects if kind == "entity" else self.terrain
-        aliases = self.ENTITY_ALIASES if kind == "entity" else self.TILE_ALIASES
-        for n in (name, aliases.get(name.lower()), name.lower()):
-            if n and n in table:
-                return str(self.assets_dir / table[n])
+    # Search for a sprite in the catalog (LLM generation disabled)
+    def init_sprite(self, name: str, *, kind: str = "entity", fallback: str | None = None) -> str | None:
+        path = self.from_catalog(name, kind=kind)
+        if path:
+            return path
+        if fallback and fallback != name:
+            return self.from_catalog(fallback, kind=kind)
         return None
 
-    # 2. Claude pixel-art generation
-    def generate(self, name: str, kind: str) -> str | None:
-        if not self.sprite_model:
+    @staticmethod
+    def sprite_source(path: str | None) -> str:
+        if not path:
+            return "missing"
+        return "generated" if Path(path).name.startswith("gen_") else "catalog"
+
+    @staticmethod
+    def sprite_label(path: str | None) -> str | None:
+        """Frontend-safe label: objects/rock, terrain/dirt, or gen_entity_foo."""
+        if not path:
             return None
-        slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") or "obj"
-        out = self.generated_dir / f"gen_{kind}_{slug}.png"
-        if out.exists():
-            return str(out)
-        try:
-            from .llm import Compiler
-            if self._compiler is None:
-                self._compiler = Compiler(self.sprite_model, max_tokens=4000, retries=2)
-            n = self.SPRITE_GRID
-            shape = ("a single object centered on a transparent background" if kind == "entity"
-                     else "a seamless terrain texture filling the whole grid")
-            
-            # Generate pixel values
-            data = self._compiler.json(
-                f"You are a pixel-art sprite generator for a top-down 2D game. You design "
-                f"tiny, iconic, low-detail sprites on a {n}x{n} grid — no text, no fine detail.",
-                f"Design a {n}x{n} pixel-art sprite of '{name}' as {shape}. Keep it simple and "
-                f"instantly readable at small size, with a small flat color palette. Return JSON "
-                f'{{"grid": [[...]]}} of exactly {n} rows of {n} cells; each cell is a hex color '
-                f'like "#3a7d44", or null for a transparent pixel.')
-            img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-            px = img.load()
-            
-            # Iterate over pixel values and gen final png
-            for y, row in enumerate((data.get("grid") or [])[:n]):
-                for x, cell in enumerate((row or [])[:n]):
-                    s = cell.lstrip("#") if isinstance(cell, str) else ""
-                    s = "".join(c * 2 for c in s) if len(s) == 3 else s
-                    if len(s) >= 6:
-                        px[x, y] = (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16), 255)
-            img.resize((self.SPRITE_RES, self.SPRITE_RES), Image.NEAREST).save(out)
-            return str(out)
-        except Exception:
-            return None
+        p = Path(path)
+        if p.name.startswith("gen_"):
+            return p.stem
+        for sub in ("objects", "terrain"):
+            if sub in p.parts:
+                return f"{sub}/{p.stem}"
+        return p.stem
+
+    @staticmethod
+    def sprite_url(path: str | None) -> str:
+        if not path:
+            return ""
+        p = Path(path)
+        if p.name.startswith("gen_"):
+            return f"/generated/{p.name}"
+        for sub in ("objects", "terrain"):
+            if sub in p.parts:
+                return f"/assets/{sub}/{p.name}"
+        return ""
+
+    # Direct catalog lookup by exact asset name from the spec
+    def from_catalog(self, name: str, *, kind: str) -> str | None:
+        table = self.terrain if kind == "terrain" else self.objects
+        if name in table:
+            return str(self.assets_dir / table[name])
+        return None
+
+    # # 2. Claude pixel-art generation (disabled — catalog only)
+    # def generate(self, name: str, *, kind: str = "entity") -> str | None:
+    #     if not self.sprite_model:
+    #         return None
+    #     slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") or "obj"
+    #     out = self.generated_dir / f"gen_{kind}_{slug}.png"
+    #     if out.exists() and out.stat().st_size > 300:
+    #         return str(out)
+    #     try:
+    #         from ..utils import Compiler
+    #         if self.compiler is None:
+    #             self.compiler = Compiler(
+    #                 self.sprite_model, self.sprite_max_tokens, self.sprite_retries)
+    #         n = self.sprite_grid
+    #         shape = prompts.SPRITE_ENTITY_SHAPE if kind == "entity" else prompts.SPRITE_TERRAIN_SHAPE
+    #
+    #         # Generate pixel values
+    #         data = self.compiler.json(
+    #             prompts.SPRITE_GEN_SYSTEM.format(n=n),
+    #             prompts.SPRITE_GEN_USER.format(n=n, name=name, shape=shape))
+    #         img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    #         px = img.load()
+    #         painted = 0
+    #
+    #         # Iterate over pixel values and gen final png
+    #         for y, row in enumerate((data.get("grid") or [])[:n]):
+    #             for x, cell in enumerate((row or [])[:n]):
+    #                 s = cell.lstrip("#") if isinstance(cell, str) else ""
+    #                 s = "".join(c * 2 for c in s) if len(s) == 3 else s
+    #                 if len(s) >= 6:
+    #                     px[x, y] = (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16), 255)
+    #                     painted += 1
+    #         if painted == 0:
+    #             if out.exists():
+    #                 out.unlink()
+    #             return None
+    #         img.resize((self.sprite_res, self.sprite_res), Image.NEAREST).save(out)
+    #         return str(out)
+    #     except Exception:
+    #         if out.exists() and out.stat().st_size <= 300:
+    #             out.unlink()
+    #         return None

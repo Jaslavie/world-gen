@@ -1,24 +1,34 @@
+"""The MCP server: exposes the world's actions as MCP tools the agent can call.
+
+Wraps one Engine over one SQLite world and logs every tool call to actions.log.
+"""
 from __future__ import annotations
 
 import os
 from pathlib import Path
 from typing import Any
 
+import hydra
+from hydra import compose, initialize_config_dir
 from mcp.server.fastmcp import FastMCP
+from omegaconf import DictConfig
 
-from .config import cfg
-from .engine import Engine
+from .runtime import Engine
 
-# All actions taken by the agent are recorded in a file
-DB = os.environ.get("WORLD_DB", cfg.paths.runtime_db)
-ACTIONS_LOG = os.environ.get("ACTIONS_LOG") or str(Path(DB).with_name("actions.log"))
+# every tool call is appended here, one line per action
+with initialize_config_dir(config_dir=str(Path(__file__).resolve().parent.parent / "conf"),
+                           version_base=None):
+    cfg = compose(config_name="config")
 
-engine = Engine(DB, cfg)
+db_path = os.environ.get("WORLD_DB", cfg.paths.runtime_db)
+actions_log_path = os.environ.get("ACTIONS_LOG") or str(Path(db_path).with_name("actions.log"))
+
+engine = Engine(db_path, cfg)
 mcp = FastMCP("worldgen")
 
 
 def record(line: str) -> None:
-    with open(ACTIONS_LOG, "a") as fh:
+    with open(actions_log_path, "a") as fh:
         fh.write(line + "\n")
 
 
@@ -77,5 +87,13 @@ def get_success() -> bool:
     return engine.success()
 
 
-if __name__ == "__main__":
+@hydra.main(version_base=None, config_path="../conf", config_name="config")
+def main(cfg: DictConfig) -> None:
+    global engine
+    db = os.environ.get("WORLD_DB", cfg.paths.runtime_db)
+    engine = Engine(db, cfg)
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()
