@@ -10,28 +10,24 @@ See [Architecture Overview](#architecture-overview) to understand how it works.
 
 > The following uses the prompt *"pull the lever to cross water over bridge terrain"* and is run with the frontend.
 
-Bridge over water
+![Bridge over water](artifacts/gifs/bridge_crossing.gif)
 
 Other tasks:
+| | |
+| --- | --- |
+| ![Key and exit](artifacts/gifs/door.gif)<br>*"grab the key, open the door, and reach the exit_sign"* | ![Lever and flag](artifacts/gifs/lever.gif)<br>*"flip the switch and carry gold to the flag"* |
 
-
-|                                                                       |                                                               |
-| --------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Key and exit *"grab the key, open the door, and reach the exit_sign"* | Lever and flag *"flip the switch and carry gold to the flag"* |
-
-
-
-|                                                                                  |                                                                                   |                                                                                |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Lava maze *"traverse a lava maze, pick up the key, and put it inside the crate"* | Mushroom and bush *"cross grass and dirt to place the mushroom next to the bush"* | Frog and star *"a frog crosses water via bridge to drop the star on the rock"* |
-| Coin on sand *"pick up the coin from the sand and place it on the rock"*         | Spaceship dock *"dock at the spaceship, pick up gem, and place it on the crate"*  | Key and exit *"grab the key, open the door, and reach the exit_sign"*          |
+| | | |
+| --- | --- | --- |
+| ![Lava maze](artifacts/results/lava_full_env.png)<br>*"traverse a lava maze, pick up the key, and put it inside the crate"* | ![Mushroom and bush](artifacts/results/mushroom.png)<br>*"cross grass and dirt to place the mushroom next to the bush"* | ![Frog and star](artifacts/results/frog.png)<br>*"a frog crosses water via bridge to drop the star on the rock"* |
+| ![Coin on sand](artifacts/results/coin.png)<br>*"pick up the coin from the sand and place it on the rock"* | ![Spaceship dock](artifacts/results/spaceship.png)<br>*"dock at the spaceship, pick up gem, and place it on the crate"* | ![Key and exit](artifacts/results/door.png)<br>*"grab the key, open the door, and reach the exit_sign"* |
 
 
 Across **39 logged generation runs**, **25 compiled and passed all verifier checks** (64%); the rest exhausted the 6-attempt retry budget. Simple pick-and-place tasks compile most reliably (100%) while layout-heavy prompts like lava mazes and dungeons are hardest (50%). The likely reasons are that the LLM struggles with geometry-based tasks. 
 
 Normally, **procedural noise generation** is more effective for this, as proven by [Minecraft biome gen](https://minecraft.wiki/w/World_generation). We made this tradeoff to limit scope.
 
-Compile outcomes by task family
+![Compile outcomes by task family](artifacts/evaluations/compile_by_family.png)
 
 # Table of Contents
 
@@ -96,7 +92,7 @@ Inspect `world-gen/runtime/run.log` for per-step world state.
 
 # Architecture Overview
 
-Architecture
+![Architecture](artifacts/architecture-diagram.png)
 
 World Gen turns text prompts into playable 2D games where the entire world state is tracked in a database. This allows code to mathematically prove the game is valid before an agent ever takes an action.
 
@@ -119,9 +115,9 @@ Instead of generating everything from scratch, we explicitly ground generation i
 **Object primitives** are entities in the game: rocks, placeable keys, agents. Sprites come from a fixed Kenney catalog (`catalog.json`); the model picks asset names from that list.
 
 
-| `holder`                               | walkable terrain       | `pickable`                       | `openable`                     | `container`                          |
-| -------------------------------------- | ---------------------- | -------------------------------- | ------------------------------ | ------------------------------------ |
-| adventurer object that can carry items | stone tile to stand on | key object that can be picked up | door object that can be opened | crate object others can be placed in |
+| `holder` | walkable terrain | `pickable` | `openable` | `container` |
+| --- | --- | --- | --- | --- |
+| ![adventurer](artifacts/readme/components/holder.png)<br>object that can carry items | ![stone](artifacts/readme/components/terrain.png)<br>tile to stand on | ![key](artifacts/readme/components/pickable.png)<br>object that can be picked up | ![door](artifacts/readme/components/openable.png)<br>object that can be opened | ![crate](artifacts/readme/components/container.png)<br>object others can be placed in |
 
 
 Each object has a state. A key has the `pickable` component; a chest has `container` and `openable`. Walls are non-walkable terrain tiles — the agent cannot pass through them.
@@ -236,7 +232,7 @@ world-gen/
 
 ### World State Generator
 
-World generation pipeline
+![World generation pipeline](artifacts/01-world-generation.png)
 
 **Stage 1: Generate the task list**
 The ordered sub-goals the world must support.
@@ -286,7 +282,7 @@ The LLM draws the full terrain map and places every entity by coordinate; the ve
 
 ### Database design
 
-Database creation
+![Database creation](artifacts/02-database-creation.png)
 
 **Step 1: Deterministic baseline schema**
 
@@ -302,7 +298,7 @@ Importantly, tools never directly read from the database. A snapshot combines ro
 
 ### Tool Layer
 
-Tool calls
+![Tool calls](artifacts/04-tool-calls.png)
 
 **Steps**
 
@@ -314,7 +310,7 @@ Tool calls
 
 ### Verifier
 
-Verifier
+![Verifier](artifacts/03-verifier.png)
 
 1. On world creation: `verify_world()` runs placement, non-trivial, and BFS reachability checks before the agent starts
 2. On each agent step: `verify(snap)` checks whether every rule in the snapshot currently passes
@@ -324,11 +320,11 @@ Verifier
 # Evaluations
 
 
-| Example                 | Limitation                                                                                                                                      |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bridge crossing malform | Model may struggle with full physics understanding (i.e. the bridge should be horizontal). This may deserve more hand-crafted test cases.       |
-| Maze poorly formed      | Model struggles with complex geometric formations. Needs to be grounded with procedural noise generation to avoid hallucinated geometries       |
-| River avoid blocks      | This was an earlier example where the goal is unreachable (before test cases). The agent still successfully avoids the river (unwalkable block) |
+| Example | Limitation |
+| ------- | ---------- |
+| ![Bridge crossing malform](artifacts/evaluations/bridge_crossing_malform.gif) | Model may struggle with full physics understanding (i.e. the bridge should be horizontal). This may deserve more hand-crafted test cases. |
+| ![Maze poorly formed](artifacts/evaluations/maze_poor_formed.png) | Model struggles with complex geometric formations. Needs to be grounded with procedural noise generation to avoid hallucinated geometries |
+| ![River avoid blocks](artifacts/evaluations/river_avoid_blocks.gif) | This was an earlier example where the goal is unreachable (before test cases). The agent still successfully avoids the river (unwalkable block) |
 
 
 
