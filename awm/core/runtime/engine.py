@@ -1,5 +1,7 @@
 """
 Main runtime that runs the agent in the world
+- Ingests snapshots and applies actions to the DB
+- Checks success state with verifier
 """
 from __future__ import annotations
 

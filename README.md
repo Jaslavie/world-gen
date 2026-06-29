@@ -20,6 +20,10 @@ Other tasks:
 | ![Lava maze](artifacts/results/lava_full_env.png)<br>*"traverse a lava maze, pick up the key, and put it inside the crate"* | ![Mushroom and bush](artifacts/results/mushroom.png)<br>*"cross grass and dirt to place the mushroom next to the bush"* | ![Frog and star](artifacts/results/frog.png)<br>*"a frog crosses water via bridge to drop the star on the rock"* |
 | ![Coin on sand](artifacts/results/coin.png)<br>*"pick up the coin from the sand and place it on the rock"* | ![Spaceship dock](artifacts/results/spaceship.png)<br>*"dock at the spaceship, pick up gem, and place it on the crate"* | ![Key and exit](artifacts/results/door.png)<br>*"grab the key, open the door, and reach the exit_sign"* |
 
+Across **39 logged generation runs**, **25 compiled and passed all verifier checks** (64%); the rest exhausted the 6-attempt retry budget with no world shipped. Simple pick-and-place tasks compile most reliably (100%); layout-heavy prompts like lava mazes and dungeons are hardest (50%). Every success is BFS-solvable and schema-valid.
+
+![Compile outcomes by task family](artifacts/evaluations/compile_by_family.png)
+
 # Table of Contents
 
 - [Getting Started](#getting-started)
@@ -117,7 +121,9 @@ Instead of generating everything from scratch, we explicitly ground generation i
 **Object primitives** are entities in the game: rocks, placeable keys, agents. Sprites come from a fixed Kenney catalog (`catalog.json`); the model picks asset names from that list.
 
 
-| ![adventurer](artifacts/readme/components/holder.png)<br>`holder`: an object that can carry items | ![stone](artifacts/readme/components/terrain.png)<br>walkable tile terrain to stand on | ![key](artifacts/readme/components/pickable.png)<br>`pickable`: an object that can be picked up | ![door](artifacts/readme/components/openable.png)<br>`openable`: an object that can be opened | ![crate](artifacts/readme/components/container.png)<br>`container`: a container object which other objects can be placed in |
+| `holder` | walkable terrain | `pickable` | `openable` | `container` |
+| --- | --- | --- | --- | --- |
+| ![adventurer](artifacts/readme/components/holder.png)<br>object that can carry items | ![stone](artifacts/readme/components/terrain.png)<br>tile to stand on | ![key](artifacts/readme/components/pickable.png)<br>object that can be picked up | ![door](artifacts/readme/components/openable.png)<br>object that can be opened | ![crate](artifacts/readme/components/container.png)<br>object others can be placed in |
 
 
 Each object has a state. A key has the `pickable` component; a chest has `container` and `openable`. Walls are non-walkable terrain tiles — the agent cannot pass through them.
@@ -311,13 +317,13 @@ Importantly, tools never directly read from the database. A snapshot combines ro
 
 # Results
 
-**TLDR: generated worlds are schema-valid and rule-grounded before use, by code**
-Measured with 8 prompt benchmarks (gallery above) using Opus 4.8 for compiling the world spec and Sonnet 4.6 for MCP tool calls.
+**TLDR: generated worlds are schema-valid and rule-grounded before use, by code** (see chart above).
+Measured with 8 prompt benchmarks using Opus 4.8 for compiling the world spec and Sonnet 4.6 for MCP tool calls.
 
 
 | metric                    | value                                                                                              |
 | ------------------------- | -------------------------------------------------------------------------------------------------- |
-| worlds compiled           | 5 of 5 grounded and solvable                                                                       |
+| worlds compiled           | 25 / 39 logged runs (64%); 100% of successes pass all verifier checks                              |
 | solvability               | BFS reachability to all goal entities at compile time; win state checked per step via `verify()`     |
 | check coverage            | all rule checks exercised across the prompts                                                       |
 | generation latency        | about 10 to 18 s per world (2 LLM calls)                                                           |
