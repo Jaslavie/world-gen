@@ -117,7 +117,7 @@ Instead of generating everything from scratch, we explicitly ground generation i
 **Object primitives** are entities in the game: rocks, placeable keys, agents. Sprites come from a fixed Kenney catalog (`catalog.json`); the model picks asset names from that list.
 
 
-| ![adventurer](awm/assets/objects/adventurer.png)<br>`holder`: an object that can carry items | ![grass](awm/assets/terrain/grass.png)<br>walkable tile terrain to stand on | ![key](awm/assets/objects/key.png)<br>`pickable`: an object that can be picked up | ![door](awm/assets/objects/door.png)<br>`openable`: an object that can be opened | ![crate](awm/assets/objects/crate.png)<br>`container`: a container object which other objects can be placed in |
+| ![adventurer](artifacts/readme/components/holder.png)<br>`holder`: an object that can carry items | ![stone](artifacts/readme/components/terrain.png)<br>walkable tile terrain to stand on | ![key](artifacts/readme/components/pickable.png)<br>`pickable`: an object that can be picked up | ![door](artifacts/readme/components/openable.png)<br>`openable`: an object that can be opened | ![crate](artifacts/readme/components/container.png)<br>`container`: a container object which other objects can be placed in |
 
 
 Each object has a state. A key has the `pickable` component; a chest has `container` and `openable`. Walls are non-walkable terrain tiles — the agent cannot pass through them.

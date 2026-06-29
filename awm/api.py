@@ -188,10 +188,10 @@ def run_generate(prompt: str) -> None:
         set_stage(4, "done", f"{len(spec['entities'])} entities written to SQLite")
         conn = engine.world.connect(read_only=True)
         payload["assets"] = [
-            {"word": t, "label": AssetLibrary.sprite_label(s) or t,
+            {"word": Path(s).stem, "label": AssetLibrary.sprite_label(s) or Path(s).stem,
              "source": AssetLibrary.sprite_source(s),
              "png": AssetLibrary.sprite_url(s)}
-            for t, s in conn.execute("SELECT entity_type, sprite FROM entities")]
+            for _t, s in conn.execute("SELECT entity_type, sprite FROM entities")]
         conn.close()
         set_stage(5, "done", "move · pick · place · toggle · observe")
         set_stage(6, "done", f"{sum(ok for _n, ok, _m in checks)}/{len(checks)} grounding checks · solvable")

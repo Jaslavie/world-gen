@@ -73,6 +73,8 @@ class SpatialTools(Observer):
         return snap
 
     def pick(self, snap: Snapshot, eid: str, agent: str = "agent") -> Snapshot:
+        if not self.v.has_component(snap, agent, "holder"):
+            return snap
         if self.held(snap, agent) is not None or not self.v.has_component(snap, eid, "pickable"):
             return snap
         if not self.v.adjacent(self.v.pos(snap, agent), self.v.pos(snap, eid)):
@@ -89,6 +91,9 @@ class SpatialTools(Observer):
         if target is not None:
             if target not in snap.entities or not self.v.adjacent(
                     self.v.pos(snap, agent), self.v.pos(snap, target)):
+                return snap
+            if not (self.v.has_component(snap, target, "container")
+                    or self.v.has_component(snap, target, "surface")):
                 return snap
             snap.pos[eid] = self.v.pos(snap, target)
         else:

@@ -105,8 +105,20 @@ class Verifier:
     # Verify the world is valid before the agent takes any actions
     def verify_world(self, snap: Snapshot) -> list[Check]:
         out: list[Check] = []
-        # 1. record the objective (well-formed rule set; always passes)
-        out.append(("snapshot", True, self.describe(snap.rules)))
+        # 1. every rule is well-formed, references only defined entities, and uses only defined checks
+        ids = set(snap.entities)
+        formed, formed_msg = True, self.describe(snap.rules)
+        for r in snap.rules:
+            if r.check not in self.checks:
+                formed, formed_msg = False, f"unknown check {r.check!r}"
+                break
+            for a in r.args:
+                if isinstance(a, str) and a not in ids:
+                    formed, formed_msg = False, f"{r.check} references unknown entity {a!r}"
+                    break
+            if not formed:
+                break
+        out.append(("snapshot", formed, formed_msg))
 
         # 2. every entity is in bounds, off walls, and on a distinct cell
         seen: dict[Vec, str] = {}

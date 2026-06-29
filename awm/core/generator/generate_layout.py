@@ -19,10 +19,6 @@ def fill_map_gaps(spec: dict[str, Any]) -> None:
 
     w = max(len(r) for r in rows)
     h = len(rows)
-    dims = spec.get("dimensions")
-    if isinstance(dims, list) and len(dims) >= 2:
-        w = max(w, int(dims[0]))
-        h = max(h, int(dims[1]))
 
     padded: list[str] = []
     for i in range(h):

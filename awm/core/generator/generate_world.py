@@ -44,6 +44,10 @@ class Generator:
                 user += f"\n\nFix this and return corrected JSON: {err}"
         if isinstance(task, dict) and (task.get("task_description") or task.get("objective_summary")):
             task.setdefault("task_description", task.get("objective_summary", prompt))
+            req = task.setdefault("required_entities", [])
+            # reject hallucinated tasks
+            if "agent" not in req:
+                req.insert(0, "agent")
             return task
         raise ValueError("could not synthesize a usable task spec")
 
@@ -150,3 +154,15 @@ class Generator:
                 raise ValueError(
                     f"entity {e['id']} at ({e['x']}, {e['y']}) is not on a walkable cell"
                 )
+
+        # 5. every rule is well-formed, references only defined entities, and uses only defined checks
+        allowed_checks = {c.split("(")[0] for c in prompts.ALLOWED_CHECKS}
+        entity_ids = set(ids)
+        for i, rule in enumerate(spec["rules"]):
+            if not isinstance(rule, dict) or not rule.get("check") or not isinstance(rule.get("args"), list):
+                raise ValueError(f"rule {i} needs check and args")
+            if rule["check"] not in allowed_checks:
+                raise ValueError(f"rule {i} unknown check {rule['check']!r}")
+            for a in rule["args"]:
+                if isinstance(a, str) and a not in entity_ids:
+                    raise ValueError(f"rule {i} ({rule['check']}) references unknown entity {a!r}")
