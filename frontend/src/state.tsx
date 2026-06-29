@@ -62,7 +62,7 @@ export const useStudio = () => {
 };
 
 export function StudioProvider({ children }: { children: React.ReactNode }) {
-  const [prompt, setPrompt] = useState("a wizard arrives at the dungeon and locks the golden key inside the chest");
+  const [prompt, setPrompt] = useState("pull the lever to cross water over bridge terrain");
   const [snap, setSnap] = useState<Snapshot>(EMPTY);
   const ws = useRef<WebSocket | null>(null);
 

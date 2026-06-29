@@ -1,7 +1,9 @@
+mode: terminal                  # terminal | frontend
+
 models:
   compile: claude-opus-4-8        # world compiler (runs once per world; quality)
   agent: claude-sonnet-4-6        # agent policy (many tool calls; speed)
-  sprite: claude-haiku-4-5-20251001  # off-catalog pixel-art sprites (cheap; cached)
+  # sprite: claude-haiku-4-5-20251001  # off-catalog pixel-art sprites (disabled)
 
 llm:
   compile_max_tokens: 4000     # max_tokens for a generation call
@@ -12,6 +14,17 @@ generation:
   env_attempts: 6              # env-gen reject-and-regenerate budget
   seed: 0                      # default generation seed (logged for reproducibility)
 
+# sprites:
+#   res: 64                      # final sprite size (px), matching catalog art
+#   grid: 16                     # design resolution; nearest-neighbour upscaled to res
+#   max_tokens: 4000             # max_tokens for off-catalog sprite JSON generation
+#   retries: 2                   # JSON parse retries for sprite generation
+sprites:
+  res: 64
+  grid: 16
+  max_tokens: 4000
+  retries: 2
+
 agent:
   steps: 60                    # default tool-call budget for a rollout
   max_tokens: 1500             # max_tokens per agent turn
@@ -20,11 +33,10 @@ paths:
   assets: awm/assets                       # labeled Kenney catalog (catalog.json + objects/ + terrain/)
   generated_assets: awm/runtime/sprites    # Claude-generated sprite cache (off-catalog objects)
   runtime_db: awm/runtime/world.db
+  logs: awm/logs                             # session dirs: run.log, database/, benchmark.json
 
 render:
   cell: 36                     # pixels per grid cell
-  panel_w: 320                 # inspector panel width
-  font: "menlo,consolas,monospace"
 
 server:
   host: "127.0.0.1"            # Studio backend bind address

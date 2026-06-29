@@ -21,7 +21,7 @@ function TopBar() {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !busy && generate()}
-          placeholder="Describe a world…  e.g. a kitchen: put the apple on the counter"
+          placeholder="Describe a world…  e.g. pull the lever to cross water over bridge terrain"
           className="h-9 w-full max-w-2xl rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-faint focus:border-accent/40 focus:ring-2 focus:ring-accent/15"
         />
       </div>

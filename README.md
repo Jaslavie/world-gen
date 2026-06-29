@@ -6,30 +6,37 @@ The primary goal of this project is to demonstrate that **AI generation can be g
 
 See [Architecture Overview](#architecture-overview) to understand how it works.
 
-|                                                                               |                                                                       |                                                              |
-| ----------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------ |
-| _"a wizard arrives at the dungeon and locks the golden key inside the chest"_ | _"an astronaut docks the ship and sets the green gem on the console"_ | _"an explorer unlocks the ancient door with the red key"_    |
-| _"a scientist pulls the lever to power up the reactor"_                       | _"a pirate digs the gold coin out of the sand"_                       | _"a gardener carries the watering can to the wilting plant"_ |
-| _"a frog hops over to drop the star onto the mossy rock"_                     | _"a knight seals the red gem inside the treasure crate"_              | _"a witch tosses the mushroom into the bubbling cauldron"_   |
+![Cross the bridge](artifacts/gifs/bridge_crossing.gif)
+*"pull the lever to cross water over bridge terrain"*
 
----
+|                                                                                                                         |                                                                                                                          |                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| ![Lava maze](artifacts/results/lava_full_env.png)<br>*"traverse a lava maze, pick up the key, and put it inside the crate"* | ![Mushroom and bush](artifacts/results/mushroom.png)<br>*"cross grass and dirt to place the mushroom next to the bush"*       | ![Gem in box](artifacts/results/gem.png)<br>*"pick up the gem and put it inside the box"*                            |
+| ![Key and exit](artifacts/results/lava.png)<br>*"grab the key, open the door, and reach the exit_sign"*                     | ![Bridge over water](artifacts/results/bridge.png)<br>*"pull the lever to cross water over bridge terrain"*                 | ![Coin on sand](artifacts/results/coin.png)<br>*"pick up the coin from the sand and place it on the rock"*            |
+| ![Frog and star](artifacts/results/frog.png)<br>*"a frog crosses water via bridge to drop the star on the rock"*                       | ![Spaceship dock](artifacts/results/spaceship.png)<br>*"dock at the spaceship, pick up gem, and place it on the crate"* | ![Lever and flag](artifacts/results/lever.png)<br>*"flip the switch and carry gold to the flag"*                       |
+
 
 # Table of Contents
 
 - [Getting Started](#getting-started)
-- [Overview: why verifiable worlds?](#overview-why-verifiable-worlds)
 - [Architecture Overview](#architecture-overview)
-  - [Building Blocks](#building-blocks)
-    - [Primitives: grounding objects](#primitives-grounding-objects)
-    - [World state stored in a Database](#world-state-stored-in-a-database)
-    - [Tool calls for verification](#tool-calls-for-verification)
-  - [Architecture](#architecture)
+- [Building Blocks](#building-blocks)
+  - [Stateful objects](#stateful-objects)
+  - [World state represented as a Database](#world-state-represented-as-a-database)
+  - [Tool-based interaction with world](#tool-based-interaction-with-world)
+  - [Deterministic Verifier](#deterministic-verifier)
+    - [Verifying world validity](#verifying-world-validity)
+    - [Checking for game success](#checking-for-game-success)
+- [Architecture](#architecture)
+  - [World State Generator](#world-state-generator)
+  - [Database design](#database-design)
+  - [Tool Layer](#tool-layer)
+  - [Verifier](#verifier)
+- [Evaluations](#evaluations)
 - [Results](#results)
   - [Baseline comparison](#baseline-comparison)
 - [Next steps](#next-steps)
 - [Acknowledgements](#acknowledgements)
-
----
 
 # Getting Started
 
@@ -43,17 +50,9 @@ export ANTHROPIC_API_KEY=sk-...
 
 2. Pick one of the two options below
 
-**Option A: Terminal**
+> It's recommended to use a prompt that uses one of the objects in the `catalog.json` file since the model does not generate new assets for the scope of this project.
 
-```bash
-# Run generation
-python -m awm.core.agent
-
-# or pass the prompt directly to the command line
-python -m awm.core.agent "get the can onto the table"
-```
-
-**Option B: frontend interface** (Recommended)
+**Option A: frontend interface** (Recommended)
 
 ```bash
 # Terminal 1: backend (holds ANTHROPIC_API_KEY)
@@ -70,6 +69,16 @@ pnpm dev
 
 Open `http://localhost:5173`. Type a prompt, press Generate, then press Run agent.
 
+**Option B: Terminal**
+
+```bash
+# Run generation
+python -m awm.core.agent
+
+# or pass the prompt directly to the command line
+python -m awm.core.agent "pick up the gem and put it inside the box"
+```
+
 3. Open `run.log` to inspect the world state over time
 
 ```text
@@ -79,48 +88,51 @@ Open `http://localhost:5173`. Type a prompt, press Generate, then press Run agen
   { "observe": { ... }, "get_objective": "...", "get_success": false }
 ```
 
----
-
 # Architecture Overview
 
 ![Architecture](artifacts/architecture-diagram.png)
 
-World Gen turns text prompts into playable 2D games where the entire world state is tracked in a database. This allows code to mathematically prove the game is solvable before an agent ever takes an action.
+World Gen turns text prompts into playable 2D games where the entire world state is tracked in a database. This allows code to mathematically prove the game is valid before an agent ever takes an action.
 
 WorldGen consists of three parts:
 
-**Stochastic World Generation**: This module turns natural language prompts into a complete world specification (objects, ). It excels at what LLMs do best: formulating the semantics, creative themes, and aesthetic layout of the world based on user intent.
+**Stochastic World Generation**: This module turns natural language prompts into a complete world specification (objects, terrain, rules). It excels at what LLMs do best: formulating the semantics, creative themes, and aesthetic layout of the world based on user intent.
 
 **World state stored in queryable database**: This module takes the generator's output and writes it into a local SQLite database. It serves as the single, absolute source of truth where all entities, rules, and world primitives are stored as rigid relational rows.
 
-**Deterministic Verifier**: This module runs a traditional graph-search algorithm (BFS) directly over the database rows. By checking the layout against the objective predicates, it mathematically proves with 100% certainty whether the generated level is beatable before the runtime engine even starts.
-
----
+**Deterministic Verifier**: This module runs fixed Python rule checks over the database rows. It validates placement, non-trivial objectives, and whether win-condition entities exist before the runtime engine starts.
 
 # Building Blocks
 
 A world is made of 3 primitives that are built on top of each other like legos. This grounds each generation process into checkable steps.
 
-## Stateful objects
+### 1. Stateful objects
 
 Instead of generating everything from scratch, we explicitly ground generation into explicit **object** and **action** primitives, outlined below.
 
 **Object primitives** are entities in the game: rocks, placeable keys, agents. We have an existing catalog of 2D object assets that is searched first. If not found, the 2D assets will be generated by calude.
+
 
 |                                          |                                   |                                             |                                          |                                                                      |
 | ---------------------------------------- | --------------------------------- | ------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------- |
 |                                          |                                   |                                             |                                          |                                                                      |
 | `holder`: an object that can carry items | walkable tile terrain to stand on | `pickable`: an object that can be picked up | `openable`: an object that can be opened | `container`: a container object which other objects can be placed in |
 
-Each object has a state. That is, a key can have the `pickable` state and a wall has a `blocking` state (becuase the agent cannot walk through a wall). The
 
-**Action primitives** are
+Each object has a state. A key has the `pickable` component; a chest has `container` and `openable`. Walls are non-walkable terrain tiles — the agent cannot pass through them.
 
-## World state represented as a Database
+**Action primitives** are `move`, `pick`, `place`, and `toggle` — the only ways the agent can change the world. Read-only queries (`observe`, `get_objective`, `get_success`) inspect state without mutating it.
 
-The world state is stored in **SQLite** Databases `schema.sql`) defines the baseline. A translator function uploads the LLM's output objects into new SQLite databases:
+### 2. World state represented as a Database
 
-- `meta`-
+The world state is stored in **SQLite**. A fixed `schema.sql` defines the baseline tables; `World.instantiate()` writes the LLM spec into them:
+
+- `meta` — grid size, tick, prompt, success flags
+- `map_tiles` — one row per terrain cell
+- `entities` — every object and its position
+- `entity_state` — mutable flags (`is_held`, `is_open`, …)
+- `holding` — what the agent carries
+- `objective` — flat list of win-condition rules (JSON)
 
 The current state is aggregated into a JSON from the SQLite databases. The agent will make writes to this json state first. Then, a function will upload the new states from the JSON into the databse:
 
@@ -131,33 +143,36 @@ The current state is aggregated into a JSON from the SQLite databases. The agent
   "entities": {
     "agent":      {"type": "agent", "components": ["transform", "holder"],
                    "sprite": "awm/assets/objects/adventurer.png"},
-    "golden_key": {"type": "key",   "components": ["transform", "pickable"],
+    "key":        {"type": "key",   "components": ["transform", "pickable"],
                    "sprite": "awm/assets/objects/key.png"},
-    "chest":      {"type": "chest", "components": ["transform", "container", "openable", "blocking"],
-                   "sprite": "awm/runtime/sprites/gen_entity_chest.png"},
+    "crate":      {"type": "crate", "components": ["transform", "container", "openable", "blocking"],
+                   "sprite": "awm/assets/objects/crate.png"},
   },
-  "pos":     {"agent": (2, 5), "golden_key": (3, 2), "chest": (10, 5)},
-  "flags":   {"agent": {}, "golden_key": {"is_held": False}, "chest": {"is_open": False}},
+  "pos":     {"agent": (2, 5), "key": (3, 2), "crate": (10, 5)},
+  "flags":   {"agent": {}, "key": {"is_held": False}, "crate": {"is_open": False}},
   "holding": {"agent": None},
   "rules": [
-    {"check": "inside",   "args": ["golden_key", "chest"]},
-    {"check": "not_open", "args": ["chest"]},
+    {"check": "inside",   "args": ["key", "crate"]},
+    {"check": "not_open", "args": ["crate"]},
   ],
 }
 ```
 
-## Tool-based interaction with world
+### 3. Tool-based interaction with world
 
-The agent interacts with the world through a fixed set of queries the database.
+The agent interacts with the world through a fixed set of MCP tool calls. **Actions** mutate state; **reads** inspect it.
 
-1. `move`
-2. `pick`
-3. `place`
-4. `toggle`
+1. `move(direction)` — walk one cell (up / down / left / right)
+2. `pick(entity_id)` — pick up an adjacent pickable item
+3. `place(target)` — drop held item onto a surface or current cell
+4. `toggle(entity_id)` — open, close, or flip a nearby object
+5. `observe()` — full scene graph: entities, walls, objective, per-clause status
+6. `get_objective()` — human-readable win condition
+7. `get_success()` — `verifier.verify(snap)`; true when every rule passes
 
-## Deterministic Verifier
+### 4. Deterministic Verifier
 
-### Verifying world validity
+**Verifying world validity**
 
 We can check if the world is solvable via test cases. If the world passes all test cases, then its valid. The test cases are as follows:
 
@@ -166,19 +181,16 @@ We can check if the world is solvable via test cases. If the world passes all te
 3. **Is the world non-trivial?** The win condition must be false at the start. A world where the rules are already satisfied at spawn is rejected — there has to be something left to solve.
 4. **Is the rule set well-formed?** The rules generated by the LLM must already exist in the fixed set of rules. If it fails, then the output was hallucinated.
 
-### Checking for game success
+##### Checking for game success
 
 We can check if the agent reached a success state with a tool call
 
 ```python
 # Example: The key must be in the chest AND the chest must be closed
-state = State(snap, verifier)
-state.inside("golden_key", "chest") and state.not_open("chest")
+verifier.verify(snap)
 ```
 
----
-
-# Architecture Deep Dive
+# Architecture
 
 ```text
 awm/
@@ -209,108 +221,138 @@ awm/
 
 ### World State Generator
 
-![World generation pipeline](/artifacts/01-world-generation.png)
-
-The LLM's role is to design the task.
+![World generation pipeline](artifacts/01-world-generation.png)
 
 **Stage 1: Generate the task list**
 The ordered sub-goals the world must support.
 
 ```json
 {
-  "task_id": "seal_gem_in_chest",
+  "task_id": "seal_gem_in_crate",
   "difficulty": "medium",
-  "task_description": "A gem rests in the dungeon vault. Pick it up, carry it to the treasure chest, place it inside, and close the lid so it is sealed away.",
-  "required_entities": ["agent", "goal", "container"],
-  "required_tiles": ["floor", "lava"],
-  "objective_summary": "the gem is inside the chest and the chest is closed"
+  "task_description": "A gem rests in a stone room bordered by lava. Pick it up, carry it to the crate, place it inside, and close the lid.",
+  "required_entities": ["agent", "gem", "crate"],
+  "required_tiles": ["stone", "wall", "lava"],
+  "objective_summary": "the gem is inside the crate and the crate is closed"
 }
 ```
 
 **Stage 2: Compile the world specification**
-The procedural generator will consume this to diversify the world chunk-by-chunk.
+The LLM draws the full terrain map and places every entity by coordinate; the verifier then proves it solvable before it is stored.
 
 ```json
 {
-    "chunk_size": 6,
-    "grid": [["entrance", "corridor"],
-             ["vault",    "lava_moat"]],
-    "chunks": {
-      "entrance": {
-        "tile": "stone", "walkable": true,
-        "entities": [
-          {"id": "agent", "type": "agent", "components": ["transform", "holder"], "sprite": "wizard"}
-        ]
+    "dimensions": [12, 10],
+    "terrain": {
+      "legend": {
+        "#": {"tile": "wall",  "walkable": false, "sprite": "wall"},
+        ".": {"tile": "floor", "walkable": true,  "sprite": "stone"},
+        "~": {"tile": "lava",  "walkable": false, "sprite": "lava"}
       },
-      ...
+      "map": ["############",
+              "#..........#",
+              "#..#####.~~#",
+              "#........~~#",
+              "############"]
     },
+    "entities": [
+      {"id": "agent", "type": "agent", "asset": "adventurer", "components": ["transform", "holder"], "x": 1, "y": 1},
+      {"id": "gem",   "type": "gem",   "asset": "gem",        "components": ["transform", "pickable"], "x": 9, "y": 3},
+      {"id": "crate", "type": "crate", "asset": "crate",      "components": ["transform", "container", "openable", "blocking"], "x": 2, "y": 3}
+    ],
     "rules": [
-      {"check": "inside",   "args": ["gem", "chest"]},
-      {"check": "not_open", "args": ["chest"]}
+      {"check": "inside",   "args": ["gem", "crate"]},
+      {"check": "not_open", "args": ["crate"]}
     ]
   }
 ```
 
 ### Database design
 
-![Database creation](/artifacts/02-database-creation.png)
+![Database creation](artifacts/02-database-creation.png)
 
-The SQLite database is formed from the output of the World generator.
+**Step 1: Deterministic baseline schema**
+
+We assume that all games have the same basic databases. When a new world is generated, `schema.sql` is set as the default tables.
+
+**Stage 2: Write the spec**
+
+A function runs sql queries to upload the world specification elements into the baseline databases from step 1.
+
+**Stage 3: Create JSON snapshot**
+
+Importantly, tools never directly read from the databse. A snapshot combines elements from each db table intoa. single JSON that represents the current state of the world.
 
 ### Tool Layer
 
-![Tool calls](/artifacts/04-tool-calls.png)
+![Tool calls](artifacts/04-tool-calls.png)
 
-FastMCP exposes tool calls like `observe`, `move`, `pick`, `place`, `toggle` that read/write the SQLite database. The agent can only change the world through these tools.
+**Steps**
+
+1. First, an LLM plans what move it wants to take. It can only select moves from the selected list of tool calls in SpatialTools
+2. Next, these moves are applied via the MCPAgent which updates the JSON snapshot.
+3. Finally, this new JSON is pushed to the DB
 
 ### Verifier
 
-![Verifier](/artifacts/03-verifier.png)
+![Verifier](artifacts/03-verifier.png)
 
-Plain Python rule functions over world state. Every rule must pass — `verifier.verify(snap)` returns true or false.
+1. On world creation: `verify_world()` runs placement, non-trivial, and BFS reachability checks before the agent starts
+2. On each agent step: `verify(snap)` checks whether every rule in the snapshot currently passes
 
----
+# Evaluations
+
+| Example | Results |
+| ------- | ---------- |
+| ![Bridge crossing malform](artifacts/evaluations/bridge_crossing_malform.gif) | Model may struggle with full physics understanding (i.e. the bridge should be horizontal). This may deserve more hand-crafted test cases. |
+| ![Maze poorly formed](artifacts/evaluations/maze_poor_formed.png) | Model struggles with complex geometric formations. Needs to be grounded with procedural noise generation to avoid hallucinated geometries |
+| ![River avoid blocks](artifacts/evaluations/river_avoid_blocks.gif) | This was an earlier example where the goal is unreachable (before test cases). The agent still successfully avoids the river (unwalkable block) |
 
 # Results
 
-**TLDR: 100% of generated worlds are verified solvable before use, by code**
+**TLDR: generated worlds are schema-valid and rule-grounded before use, by code**
 Measured with the 9 prompt benchmarks with Opus-4.8 for compiling the world spec and Sonnet-4.6 for mcp tool calls.
+
 
 | metric                    | value                                                                                              |
 | ------------------------- | -------------------------------------------------------------------------------------------------- |
 | worlds compiled           | 5 of 5 grounded and solvable                                                                       |
-| solvability               | guaranteed, proven by BFS before use, not estimated                                                |
+| solvability               | BFS reachability to all goal entities at compile time; win state checked per step via `verify()`     |
 | check coverage            | all rule checks exercised across the prompts                                                       |
 | generation latency        | about 10 to 18 s per world (2 LLM calls)                                                           |
 | agent success (our suite) | 1.0 on simple and compositional worlds (apple onto counter in 12 tool calls, can onto table in 10) |
 | sprite grounding          | 21 of 21 entities used a real labeled asset the model chose                                        |
 
-## Baseline comparison
 
-| System                                                               | Domain    | Success check | Solvable   | Gen cost  |
-| -------------------------------------------------------------------- | --------- | ------------- | ---------- | --------- |
-| World-Gen (this work)                                                | 2D grid   | fixed code    | guaranteed | ~14 s     |
-| Agent World Model / EnvScaler [↗](https://arxiv.org/abs/2601.05808) | web       | LLM judge     | no         | n/r       |
-| OMNI-EPIC [↗](https://arxiv.org/abs/2405.15568)                     | code sim  | LLM code      | partial    | minutes   |
-| GenSim [↗](https://arxiv.org/abs/2310.01361)                        | robotics  | LLM code      | partial    | minutes   |
-| ProcTHOR [↗](https://arxiv.org/abs/2206.06994)                      | 3D scenes | engine        | n/a        | seconds   |
-| Genie 3                                                              | pixels    | VLM           | no         | real-time |
-| DIAMOND [↗](https://arxiv.org/abs/2405.12399)                       | neural WM | none          | no         | GPU       |
 
----
 
-# Next steps
+
+### Baseline comparison
+
+
+| System                                                              | Domain    | Verifier   | Solvable?  | Generation time | Generation cost   |
+| ------------------------------------------------------------------- | --------- | ---------- | ---------- | --------------- | ----------------- |
+| World-Gen                                                           | 2D        | fixed code | guaranteed | ~14 s           | 2 LLM calls |
+| Agent World Model / EnvScaler [↗](https://arxiv.org/abs/2601.05808) | Web apps  | LLM judge  | no         | n/r             | ~$1               |
+| OMNI-EPIC [↗](https://arxiv.org/abs/2405.15568)                     | code sim  | LLM code   | partial    | minutes         | n/r               |
+| GenSim [↗](https://arxiv.org/abs/2310.01361)                        | robotics  | LLM code   | partial    | minutes         | n/r               |
+| ProcTHOR [↗](https://arxiv.org/abs/2206.06994)                      | 3D scenes | engine     | n/a        | seconds         | n/r               |
+| Genie 3                                                             | pixels    | VLM        | no         | real-time       | GPU inference     |
+| DIAMOND [↗](https://arxiv.org/abs/2405.12399)                       | neural WM | none       | no         | n/r             | GPU               |
+
+
+# Next steps & Limitations
 
 Things I would do if I had more time
 
 - **Infinite procedural generation**. We have demonstrated that generation can run fast. We can continuously generate new chunks of the world as the agent navigates by using the current world state as a prior.
 - **Enhancing environment diversity**: This phase focuses on verifiability. There is room to create more diverse worlds with added procedural generation methods like optimized Perlin noise, etc.
 - **3D.** The world spec is engine agnostic, so the same verifier could drive a 3D physics backend.
-
----
+- **Room for more determinism**: There are steps that could theoretically be deterministic that we replaced with an LLM for time. For example, we could use [part of speech tagging](https://spacy.io/usage/linguistic-features) to extract keywords/nouns from the prompt instead of using an LLM.
 
 # Acknowledgements
 
 - [Agent World Model](https://arxiv.org/pdf/2602.10090) for baseline architecture which I adapted into 2D games.
 - [mcp-agent](https://github.com/lastmile-ai/mcp-agent) for MCP server.
 - Sprites from [Kenney](https://kenney.nl).
+

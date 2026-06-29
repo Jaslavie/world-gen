@@ -172,6 +172,3 @@ While this is not true in web applicaitons, this is absolutely true in video gam
 
 Thus, we needn't spend inference on an LLM-as-a-judge, at least for the current scope of our MVP generation. Instead, we can have simple checks on win conditions (ex: `is_agent_at_coordinate_2_4( )`)
 
-## Task types
-
-- 

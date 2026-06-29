@@ -1,8 +1,17 @@
 // RIGHT — live observability panels.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useStudio } from "../state";
-import { Bar, Check, Panel, StatusDot } from "./ui";
+import { Bar, Check, Panel } from "./ui";
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <h2 className="px-1 text-[10px] font-semibold uppercase tracking-widest text-faint">{title}</h2>
+      {children}
+    </div>
+  );
+}
 
 function PromptBlock() {
   const { prompt, world } = useStudio();
@@ -11,7 +20,7 @@ function PromptBlock() {
   const words = Array.from(new Set((world?.entities ?? []).map((e) => e.type).filter((t) => t !== "agent")));
   const parts = words.length ? text.split(new RegExp(`(${words.join("|")})`, "gi")) : [text];
   return (
-    <Panel title="Prompt">
+    <Panel title="Prompt breakdown">
       <p className="text-[14px] leading-relaxed text-ink">
         {parts.map((p, i) =>
           words.some((w) => w.toLowerCase() === p.toLowerCase()) ? (
@@ -34,7 +43,7 @@ function PromptBlock() {
 function MappedAssets() {
   const { mappedAssets } = useStudio();
   return (
-    <Panel title="Mapped assets" tag={mappedAssets.length ? `${mappedAssets.length} objects` : undefined}>
+    <Panel title="Objects" tag={mappedAssets.length ? `${mappedAssets.length} objects` : undefined}>
       {mappedAssets.length === 0 ? (
         <p className="text-[13px] text-faint">objects appear here once compiled</p>
       ) : (
@@ -48,9 +57,18 @@ function MappedAssets() {
                 transition={{ delay: i * 0.1, duration: 0.3 }}
                 className="rounded-lg border border-line bg-canvas p-2 text-center"
               >
-                <img src={a.png} alt={a.label} className="pixelated mx-auto h-10 w-10 object-contain" />
+                {a.png ? (
+                  <img src={a.png} alt={a.label} className="pixelated mx-auto h-10 w-10 object-contain" />
+                ) : (
+                  <div className="mx-auto h-10 w-10 rounded bg-line" />
+                )}
                 <div className="mt-1 truncate text-[11px] font-medium text-ink">{a.word}</div>
                 <div className="truncate text-[10px] text-faint">{a.label}</div>
+                <div className={`mt-0.5 text-[9px] font-medium uppercase tracking-wide ${
+                  a.source === "generated" ? "text-accent" : a.source === "catalog" ? "text-ok" : "text-faint"
+                }`}>
+                  {a.source === "generated" ? "generated" : a.source === "catalog" ? "catalog" : "missing"}
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>
@@ -98,7 +116,7 @@ function Validator() {
 function Goal() {
   const { goalPct, clauses, success } = useStudio();
   return (
-    <Panel title="Goal" tag="agent progress">
+    <Panel title="Goal status" tag="agent progress">
       <div className="mb-1 flex items-end justify-between">
         <span className={`text-2xl font-semibold tabular-nums ${success ? "text-ok" : "text-ink"}`}>{goalPct}%</span>
         {success && <span className="text-[12px] font-semibold text-ok">complete</span>}
@@ -153,41 +171,18 @@ function ToolCalls() {
   );
 }
 
-function Rewards() {
-  const { clauses, success } = useStudio();
-  return (
-    <Panel title="Verified rewards" tag="check(condition)">
-      {clauses.length === 0 ? (
-        <p className="text-[13px] text-faint">checks run once the world is compiled</p>
-      ) : (
-        <div className="space-y-0.5">
-          {clauses.map((c) => (
-            <Check key={c.clause} ok={c.satisfied}>
-              <span className="text-muted">check </span>
-              <span className="font-mono text-[12px]">{c.clause}</span>
-              <span className="text-faint"> → {String(c.satisfied)}</span>
-            </Check>
-          ))}
-          <div className="mt-1.5 flex items-center gap-2 border-t border-line pt-1.5 text-[13px]">
-            <StatusDot status={success ? "done" : "idle"} />
-            <span className="text-muted">reward</span>
-            <span className="ml-auto font-mono font-semibold tabular-nums">{success ? "1.0" : "0.0"}</span>
-          </div>
-        </div>
-      )}
-    </Panel>
-  );
-}
-
 export function RightDock() {
   return (
-    <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
-      <PromptBlock />
-      <MappedAssets />
-      <Validator />
-      <Goal />
-      <ToolCalls />
-      <Rewards />
+    <aside className="flex min-h-0 flex-col gap-5 overflow-y-auto pr-1">
+      <Section title="World generation">
+        <PromptBlock />
+        <MappedAssets />
+        <Validator />
+      </Section>
+      <Section title="World interaction">
+        <Goal />
+        <ToolCalls />
+      </Section>
     </aside>
   );
 }

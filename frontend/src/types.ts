@@ -18,6 +18,7 @@ export interface MappedAsset {
   word: string;
   label: string;
   png: string;
+  source: "catalog" | "generated" | "missing";
 }
 
 export interface Clause {
@@ -41,5 +42,12 @@ export interface World {
   prompt: string;
 }
 
-export const objUrl = (label: string | null) => (label ? `/assets/objects/${label}.png` : "");
-export const tileUrl = (label: string | null) => (label ? `/assets/terrain/${label}.png` : "");
+// labels: gen_entity_foo | objects/rock | terrain/dirt
+export const spriteUrl = (label: string | null) => {
+  if (!label) return "";
+  if (label.startsWith("gen_")) return `/generated/${label}.png`;
+  if (label.includes("/")) return `/assets/${label}.png`;
+  return `/assets/terrain/${label}.png`;
+};
+export const objUrl = spriteUrl;
+export const tileUrl = spriteUrl;

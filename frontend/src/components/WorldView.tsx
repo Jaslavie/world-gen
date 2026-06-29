@@ -69,28 +69,38 @@ export function WorldView() {
         style={{ width: world.gridW * CELL, height: world.gridH * CELL }}
       >
         {world.tiles.flatMap((row, y) =>
-          row.map((label, x) => (
-            <img
-              key={`${x},${y}`}
-              src={tileUrl(label)}
-              alt=""
-              className="pixelated absolute"
-              style={{ left: x * CELL, top: y * CELL, width: CELL, height: CELL }}
-            />
-          )),
+          row.map((label, x) => {
+            const src = tileUrl(label);
+            const style = { left: x * CELL, top: y * CELL, width: CELL, height: CELL };
+            return src ? (
+              <img key={`${x},${y}`} src={src} alt="" className="pixelated absolute" style={style} />
+            ) : (
+              <div key={`${x},${y}`} className="absolute bg-[#e8e4dc]" style={style} />
+            );
+          }),
         )}
         {world.entities.map((e) => {
           const [x, y] = positions[e.id] ?? e.pos;
-          return (
+          const src = objUrl(e.sprite);
+          const style = {
+            width: CELL, height: CELL, left: 0, top: 0,
+            zIndex: e.type === "agent" ? 30 : 10,
+          };
+          return src ? (
             <motion.img
               key={e.id}
-              src={objUrl(e.sprite)}
+              src={src}
               alt={e.type}
               className="pixelated absolute drop-shadow"
-              style={{
-                width: CELL, height: CELL, left: 0, top: 0,
-                zIndex: e.type === "agent" ? 30 : 10,
-              }}
+              style={style}
+              animate={{ x: x * CELL, y: y * CELL }}
+              transition={{ type: "tween", ease: "easeInOut", duration: 0.35 }}
+            />
+          ) : (
+            <motion.div
+              key={e.id}
+              className="absolute rounded-sm bg-accent/30 ring-1 ring-accent/40"
+              style={style}
               animate={{ x: x * CELL, y: y * CELL }}
               transition={{ type: "tween", ease: "easeInOut", duration: 0.35 }}
             />
