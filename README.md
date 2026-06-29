@@ -10,23 +10,28 @@ See [Architecture Overview](#architecture-overview) to understand how it works.
 
 > The following uses the prompt *"pull the lever to cross water over bridge terrain"* and is run with the frontend.
 
-![Bridge over water](artifacts/gifs/bridge_crossing.gif)
+Bridge over water
 
 Other tasks:
-| | |
-| --- | --- |
-| ![Key and exit](artifacts/gifs/door.gif)<br>*"grab the key, open the door, and reach the exit_sign"* | ![Lever and flag](artifacts/gifs/lever.gif)<br>*"flip the switch and carry gold to the flag"* |
 
-| | | |
-| --- | --- | --- |
-| ![Lava maze](artifacts/results/lava_full_env.png)<br>*"traverse a lava maze, pick up the key, and put it inside the crate"* | ![Mushroom and bush](artifacts/results/mushroom.png)<br>*"cross grass and dirt to place the mushroom next to the bush"* | ![Frog and star](artifacts/results/frog.png)<br>*"a frog crosses water via bridge to drop the star on the rock"* |
-| ![Coin on sand](artifacts/results/coin.png)<br>*"pick up the coin from the sand and place it on the rock"* | ![Spaceship dock](artifacts/results/spaceship.png)<br>*"dock at the spaceship, pick up gem, and place it on the crate"* | ![Key and exit](artifacts/results/door.png)<br>*"grab the key, open the door, and reach the exit_sign"* |
+
+|                                                                       |                                                               |
+| --------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Key and exit *"grab the key, open the door, and reach the exit_sign"* | Lever and flag *"flip the switch and carry gold to the flag"* |
+
+
+
+|                                                                                  |                                                                                   |                                                                                |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Lava maze *"traverse a lava maze, pick up the key, and put it inside the crate"* | Mushroom and bush *"cross grass and dirt to place the mushroom next to the bush"* | Frog and star *"a frog crosses water via bridge to drop the star on the rock"* |
+| Coin on sand *"pick up the coin from the sand and place it on the rock"*         | Spaceship dock *"dock at the spaceship, pick up gem, and place it on the crate"*  | Key and exit *"grab the key, open the door, and reach the exit_sign"*          |
+
 
 Across **39 logged generation runs**, **25 compiled and passed all verifier checks** (64%); the rest exhausted the 6-attempt retry budget. Simple pick-and-place tasks compile most reliably (100%) while layout-heavy prompts like lava mazes and dungeons are hardest (50%). The likely reasons are that the LLM struggles with geometry-based tasks. 
 
 Normally, **procedural noise generation** is more effective for this, as proven by [Minecraft biome gen](https://minecraft.wiki/w/World_generation). We made this tradeoff to limit scope.
 
-![Compile outcomes by task family](artifacts/evaluations/compile_by_family.png)
+Compile outcomes by task family
 
 # Table of Contents
 
@@ -46,64 +51,52 @@ Normally, **procedural noise generation** is more effective for this, as proven 
   - [Verifier](#verifier)
 - [Evaluations](#evaluations)
 - [Results](#results)
-  - [Baseline comparison](#baseline-comparison)
 - [Next steps & Limitations](#next-steps--limitations)
 - [Acknowledgements](#acknowledgements)
 
+
+
 # Getting Started
 
-1. Install once
+**Recommended prompt to start**: `pull the lever to cross water over bridge terrain`
+
+> NOTE: It's recommended to use objects from `world-gen/assets/catalog.json` in your prompt. Asset generation is not supported with this version as it demonstrated lower performance and longer runtimes.
+
+### 1. Install
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
+pip install -r requirements.txt && pip install -e ".[studio]"
 export ANTHROPIC_API_KEY=sk-...
 ```
 
-2. Pick one of the two options below
-
-> It's recommended to use a prompt that uses one of the objects in the `catalog.json` file since the model does not generate new assets for the scope of this project.
-
-**Option A: frontend interface** (Recommended)
+### 2. Run the frontend studio (recommended)
 
 ```bash
-# Terminal 1: backend (holds ANTHROPIC_API_KEY)
-pip install fastapi "uvicorn[standard]"
+# terminal 1
 python -m worldgen.api
 ```
 
 ```bash
-# Terminal 2: frontend
-cd frontend
-pnpm install
+# terminal 2
+cd frontend && pnpm install
 pnpm dev
 ```
 
-Open `http://localhost:5173`. Type a prompt, press Generate, then press Run agent.
+Open `http://localhost:5173` → paste a recommended prompt → **Generate** → **Run agent**
 
-**Option B: Terminal**
+### 3. Or run in terminal only
 
 ```bash
-# Run generation
 python -m worldgen.core.agent
-
-# or pass the prompt directly to the command line
-python -m worldgen.core.agent "pick up the gem and put it inside the box"
+# type prompt when prompted
 ```
 
-3. Open `run.log` to inspect the world state over time
-
-```text
-2026-06-27T19:54:34+00:00
-- agent action: move up
-- world state:
-  { "observe": { ... }, "get_objective": "...", "get_success": false }
-```
+Inspect `world-gen/runtime/run.log` for per-step world state.
 
 # Architecture Overview
 
-![Architecture](artifacts/architecture-diagram.png)
+Architecture
 
 World Gen turns text prompts into playable 2D games where the entire world state is tracked in a database. This allows code to mathematically prove the game is valid before an agent ever takes an action.
 
@@ -126,9 +119,9 @@ Instead of generating everything from scratch, we explicitly ground generation i
 **Object primitives** are entities in the game: rocks, placeable keys, agents. Sprites come from a fixed Kenney catalog (`catalog.json`); the model picks asset names from that list.
 
 
-| `holder` | walkable terrain | `pickable` | `openable` | `container` |
-| --- | --- | --- | --- | --- |
-| ![adventurer](artifacts/readme/components/holder.png)<br>object that can carry items | ![stone](artifacts/readme/components/terrain.png)<br>tile to stand on | ![key](artifacts/readme/components/pickable.png)<br>object that can be picked up | ![door](artifacts/readme/components/openable.png)<br>object that can be opened | ![crate](artifacts/readme/components/container.png)<br>object others can be placed in |
+| `holder`                               | walkable terrain       | `pickable`                       | `openable`                     | `container`                          |
+| -------------------------------------- | ---------------------- | -------------------------------- | ------------------------------ | ------------------------------------ |
+| adventurer object that can carry items | stone tile to stand on | key object that can be picked up | door object that can be opened | crate object others can be placed in |
 
 
 Each object has a state. A key has the `pickable` component; a chest has `container` and `openable`. Walls are non-walkable terrain tiles — the agent cannot pass through them.
@@ -170,6 +163,8 @@ The current state is aggregated into a JSON snapshot from SQLite. The agent writ
 }
 ```
 
+
+
 ### 3. Tool-based interaction with world
 
 The agent interacts with the world through a fixed set of MCP tool calls. **Actions** mutate state; **reads** inspect it.
@@ -182,6 +177,8 @@ The agent interacts with the world through a fixed set of MCP tool calls. **Acti
 6. `get_objective()` — human-readable win condition
 7. `get_success()` — `verifier.verify(snap)`; true when every rule passes
 
+
+
 ### 4. Deterministic Verifier
 
 **Verifying world validity**
@@ -193,6 +190,8 @@ We can check if the world is solvable via test cases. If the world passes all te
 3. **Is the world non-trivial?** The win condition must be false at the start. A world where the rules are already satisfied at spawn is rejected — there has to be something left to solve.
 4. **Is the rule set well-formed?** The rules generated by the LLM must already exist in the fixed set of rules. If it fails, then the output was hallucinated.
 
+
+
 ##### Checking for game success
 
 We can check if the agent reached a success state with a tool call
@@ -201,6 +200,8 @@ We can check if the agent reached a success state with a tool call
 # Example: The key must be in the chest AND the chest must be closed
 verifier.verify(snap)
 ```
+
+
 
 # Architecture
 
@@ -231,9 +232,11 @@ world-gen/
         └── schema.sql      #   the shape of the world state data
 ```
 
+
+
 ### World State Generator
 
-![World generation pipeline](artifacts/01-world-generation.png)
+World generation pipeline
 
 **Stage 1: Generate the task list**
 The ordered sub-goals the world must support.
@@ -279,9 +282,11 @@ The LLM draws the full terrain map and places every entity by coordinate; the ve
   }
 ```
 
+
+
 ### Database design
 
-![Database creation](artifacts/02-database-creation.png)
+Database creation
 
 **Step 1: Deterministic baseline schema**
 
@@ -297,7 +302,7 @@ Importantly, tools never directly read from the database. A snapshot combines ro
 
 ### Tool Layer
 
-![Tool calls](artifacts/04-tool-calls.png)
+Tool calls
 
 **Steps**
 
@@ -305,20 +310,28 @@ Importantly, tools never directly read from the database. A snapshot combines ro
 2. Next, these moves are applied via the MCPAgent which updates the JSON snapshot.
 3. Finally, this new JSON is pushed to the DB
 
+
+
 ### Verifier
 
-![Verifier](artifacts/03-verifier.png)
+Verifier
 
 1. On world creation: `verify_world()` runs placement, non-trivial, and BFS reachability checks before the agent starts
 2. On each agent step: `verify(snap)` checks whether every rule in the snapshot currently passes
 
+
+
 # Evaluations
 
-| Example | Limitation |
-| ------- | ---------- |
-| ![Bridge crossing malform](artifacts/evaluations/bridge_crossing_malform.gif) | Model may struggle with full physics understanding (i.e. the bridge should be horizontal). This may deserve more hand-crafted test cases. |
-| ![Maze poorly formed](artifacts/evaluations/maze_poor_formed.png) | Model struggles with complex geometric formations. Needs to be grounded with procedural noise generation to avoid hallucinated geometries |
-| ![River avoid blocks](artifacts/evaluations/river_avoid_blocks.gif) | This was an earlier example where the goal is unreachable (before test cases). The agent still successfully avoids the river (unwalkable block) |
+
+| Example                 | Limitation                                                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bridge crossing malform | Model may struggle with full physics understanding (i.e. the bridge should be horizontal). This may deserve more hand-crafted test cases.       |
+| Maze poorly formed      | Model struggles with complex geometric formations. Needs to be grounded with procedural noise generation to avoid hallucinated geometries       |
+| River avoid blocks      | This was an earlier example where the goal is unreachable (before test cases). The agent still successfully avoids the river (unwalkable block) |
+
+
+
 
 # Results
 
@@ -326,27 +339,13 @@ Importantly, tools never directly read from the database. A snapshot combines ro
 Measured with 8 prompt benchmarks using Opus 4.8 for compiling the world spec and Sonnet 4.6 for MCP tool calls.
 
 
-| metric                    | value                                                                                              |
-| ------------------------- | -------------------------------------------------------------------------------------------------- |
-| worlds compiled           | 25 / 39 logged runs (64%); 100% of successes pass all verifier checks                              |
-| solvability               | BFS reachability to all goal entities at compile time; win state checked per step via `verify()`     |
-| check coverage            | all rule checks exercised across the prompts                                                       |
-| generation latency        | about 10 to 18 s per world (2 LLM calls)                                                           |
-| agent success (our suite) | successful solves on the door, bridge, and lever agent demos |
-| sprite grounding          | 21 of 21 entities used a real labeled asset the model chose                                        |
+| System                                                              | Domain   | Verifier  | Solvable?  | Generation time     | Generation cost |
+| ------------------------------------------------------------------- | -------- | --------- | ---------- | ------------------- | --------------- |
+| World-Gen                                                           | 2D       | Code      | guaranteed | ~10-18 s            | ~30 cents       |
+| Agent World Model / EnvScaler [↗](https://arxiv.org/abs/2601.05808) | Web apps | LLM judge | no         | n/r                 | ~$1             |
+| Genie 3                                                             | pixels   | VLM       | no         | real-time 23-24 fps | GPU inference   |
 
 
-
-
-
-### Baseline comparison
-
-
-| System                                                              | Domain    | Verifier   | Solvable?  | Generation time | Generation cost   |
-| ------------------------------------------------------------------- | --------- | ---------- | ---------- | --------------- | ----------------- |
-| World-Gen                                                           | 2D        | fixed code | guaranteed | ~10-18 s           | ~30 cents |
-| Agent World Model / EnvScaler [↗](https://arxiv.org/abs/2601.05808) | Web apps  | LLM judge  | no         | n/r             | ~$1               |
-| Genie 3                                                             | pixels    | VLM        | no         | real-time 23-24 fps      | GPU inference     |
 
 
 # Next steps & Limitations
@@ -357,6 +356,8 @@ Things I would do if I had more time
 - **Enhancing environment diversity**: This phase focuses on verifiability. There is room to create more diverse worlds with added procedural generation methods like optimized Perlin noise, etc.
 - **3D.** The world spec is engine agnostic, so the same verifier could drive a 3D physics backend.
 - **Room for more determinism**: There are steps that could theoretically be deterministic that we replaced with an LLM for time. For example, we could use [part of speech tagging](https://spacy.io/usage/linguistic-features) to extract keywords/nouns from the prompt instead of using an LLM.
+
+
 
 # Acknowledgements
 
